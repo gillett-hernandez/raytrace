@@ -5,6 +5,7 @@ import numbers
 from functools import reduce
 import os
 import multiprocessing
+import copy
 
 import argparse
 
@@ -150,20 +151,26 @@ def main(args):
     y = np.repeat(np.linspace(S[1], S[3], h), w)
 
     t0 = time.time()
-    # N = os.cpu_count()
-    # with multiprocessing.Pool(processes=N) as pool:
-    #     Qs = [vec3(_x, _y, 0) for _x, _y in zip(np.split(x, N), np.split(y, N))]
-    #     print(x.shape, y.shape)
-    #     colors = pool.starmap_async(raytrace, [(L, E, (S - E).norm(), scene) for S in Qs])
-    #     # colors = [res.get(timeout=args.timeout) for res in colors]
-    #     colors = colors.get(timeout=args.timeout)
-    #     print(type(colors), dir(colors))
-    #     # import pdb
-    #     # pdb.set_trace()
-    #     common_shape = next(c.shape for v in colors for c in v.components() if not isinstance(c, int))
-    #     color = rgb(*[np.concatenate([c if type(c) != int else np.zeros(common_shape) for c in comp]) for comp in zip(*[v.components() for v in colors])])
-    Q = vec3(x, y, 0)
-    color = do_raytrace(L, E, Q, scene, args.bounces)
+    # N = 4
+    N = os.cpu_count()
+    with multiprocessing.Pool(processes=N) as pool:
+        print("starting pool execution")
+        Qs = [vec3(_x, _y, 0) for _x, _y in zip(np.split(x, N), np.split(y, N))]
+        print(x.shape, y.shape)
+        print("sending starmap order")
+        colors = pool.starmap(do_raytrace, [copy.deepcopy(tuple([L, E, sub, scene, args.bounces])) for sub in Qs])
+        # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, sub, scene, args.bounces]))) for sub in Qs]
+        print("getting results")
+        # colors = [res.get(timeout=args.timeout) for res in colors]
+        # colors = colors.get(timeout=args.timeout)
+        print(type(colors), dir(colors))
+        # import pdb
+        # pdb.set_trace()
+        print("merging results")
+        common_shape = next(c.shape for v in colors for c in v.components() if not isinstance(c, int))
+        color = rgb(*[np.concatenate([c if type(c) != int else np.zeros(common_shape) for c in comp]) for comp in zip(*[v.components() for v in colors])])
+    # Q = vec3(x, y, 0)
+    # color = do_raytrace(L, E, Q, scene, args.bounces)
     print("Took", time.time() - t0)
 
     new_rgb = [Image.fromarray((255 * np.clip(c, 0, 1).reshape((h, w))).astype(np.uint8), "L") for c in color.components()]
