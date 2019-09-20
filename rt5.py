@@ -163,7 +163,7 @@ def do_raytrace(L, E, S, w, h, scene, max_bounces, task_id, processes):
     Q = vec3(_x, _y, 0)
     rt_result = raytrace(L, E, (Q - E).norm(), scene, max_bounces=max_bounces)
     t1 = time.time()
-    print(os.getpid(), f"done in {t1-t0} seconds!")
+    print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
     return rt_result
 
 
@@ -214,20 +214,20 @@ def main(args):
     #     )
     # ]
     # breakpoint()
-    with multiprocessing.Pool(processes=N) as pool:
+    with multiprocessing.Pool(processes=min(N, os.cpu_count()-1)) as pool:
         print(f"starting pool execution on {N} processes")
 
         print("sending starmap order")
-        colors = pool.starmap(
+        colors = pool.starmap_async(
             do_raytrace,
             [copy.deepcopy(tuple([L, E, S, w, h, scene, args.bounces, i, N])) for i in range(N)],
         )
-        # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, sub, scene, args.bounces]))) for sub in Qs]
+        # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, S, w, h, scene, args.bounces, i, N]))) for i in range(N)]
         print("getting results")
+        # colors = [res.get(timeout=args.timeout) for res in colors]
+        colors = colors.get(timeout=args.timeout)
         t1 = time.time()
         print(f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes")
-        # colors = [res.get(timeout=args.timeout) for res in colors]
-        # colors = colors.get(timeout=args.timeout)
         # import pdb
         # pdb.set_trace()
         print("merging results")
