@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import time
 import numbers
+import math
 from functools import reduce
 import os
 import multiprocessing
@@ -14,6 +15,7 @@ parser.add_argument("--width", type=int, default=1920)
 parser.add_argument("--height", type=int, default=1080)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
+parser.add_argument("--processes", type=int, default=None)
 
 
 def extract(cond, x):
@@ -142,10 +144,27 @@ class CheckeredSphere(Sphere):
         return self.diffuse * checker
 
 
-def do_raytrace(L, E, Q, scene, max_bounces):
+def next_highest_divisor(N, k):
+    t = k
+    while N % t != 0:
+        t += 1
+    return t
+
+
+def do_raytrace(L, E, S, w, h, scene, max_bounces, task_id, processes):
     print(os.getpid())
-    return raytrace(L, E, (Q - E).norm(), scene, max_bounces=max_bounces)
-    print(os.getpid(), "done!")
+    t0 = time.time()
+    assert task_id < processes
+    points = np.linspace(S[1], S[3], processes + 1)[::-1]
+    p0 = points[-task_id - 1]
+    p1 = points[-task_id - 2]
+    _x = np.tile(np.linspace(S[0], S[2], w), h // processes)
+    _y = np.repeat(np.linspace(p0, p1, h // processes), w)
+    Q = vec3(_x, _y, 0)
+    rt_result = raytrace(L, E, (Q - E).norm(), scene, max_bounces=max_bounces)
+    t1 = time.time()
+    print(os.getpid(), f"done in {t1-t0} seconds!")
+    return rt_result
 
 
 def main(args):
@@ -171,38 +190,44 @@ def main(args):
         -1.0 / r + 0.25
     )
     # fmt:on
-    x = np.tile(np.linspace(S[0], S[2], w), h)
-    y = np.repeat(np.linspace(S[1], S[3], h), w)
+    # x = np.tile(np.linspace(S[0], S[2], w), h)
+    # y = np.repeat(np.linspace(S[1], S[3], h), w)
+    # print(x.shape, y.shape)
 
     t0 = time.time()
     # N = 4
-    N = os.cpu_count()
+    oldN = os.cpu_count() if args.processes is None else args.processes
+    N = next_highest_divisor(h, oldN)
+    if N != oldN:
+        print(f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}")
     # Qs = [vec3(_x, _y, 0) for _x, _y in zip(np.split(x, N), np.split(y, N))]
-    points = np.linspace(-0.25, 0.75, N + 1)[::-1]
-    Qs = [
-        vec3(_x, _y, 0)
-        for _x, _y in zip(
-            [np.tile(np.linspace(S[0], S[2], w), h // N) for _ in range(N)],
-            [
-                np.repeat(np.arange(p1, p0, 1 / (h - 1))[::-1], w)
-                for p0, p1 in zip(points, points[1:])
-            ],
-        )
-    ]
+
+    # points = np.linspace(S[1], S[3], processes + 1)[::-1]
+    # Qs = [
+    #     vec3(_x, _y, 0)
+    #     for _x, _y in zip(
+    #         [np.tile(np.linspace(S[0], S[2], w), h // N) for _ in range(N)],
+    #         [
+    #             np.repeat(np.arange(p1, p0, 1 / (h - 1))[::-1], w)
+    #             for p0, p1 in zip(points, points[1:])
+    #         ],
+    #     )
+    # ]
     # breakpoint()
     with multiprocessing.Pool(processes=N) as pool:
         print(f"starting pool execution on {N} processes")
 
-        print(x.shape, y.shape)
         print("sending starmap order")
         colors = pool.starmap(
-            do_raytrace, [copy.deepcopy(tuple([L, E, sub, scene, args.bounces])) for sub in Qs]
+            do_raytrace,
+            [copy.deepcopy(tuple([L, E, S, w, h, scene, args.bounces, i, N])) for i in range(N)],
         )
         # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, sub, scene, args.bounces]))) for sub in Qs]
         print("getting results")
+        t1 = time.time()
+        print(f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes")
         # colors = [res.get(timeout=args.timeout) for res in colors]
         # colors = colors.get(timeout=args.timeout)
-        print(type(colors), dir(colors))
         # import pdb
         # pdb.set_trace()
         print("merging results")
@@ -215,15 +240,19 @@ def main(args):
                 for comp in zip(*[v.components() for v in colors])
             ]
         )
+    t2 = time.time()
+    print(f"Took {t2-t1} seconds to merge results")
     # Q = vec3(x, y, 0)
     # color = do_raytrace(L, E, Q, scene, args.bounces)
-    print("Took", time.time() - t0)
 
     new_rgb = [
         Image.fromarray((255 * np.clip(c, 0, 1).reshape((h, w))).astype(np.uint8), "L")
         for c in color.components()
     ]
     Image.merge("RGB", new_rgb).save("fig.png")
+
+    t3 = time.time()
+    print(f"Took {t3-t2} seconds to save results")
 
 
 if __name__ == "__main__":
