@@ -7,7 +7,6 @@ import argparse
 
 import numpy as np
 import pygame
-from PIL import Image
 from pygame.locals import *
 
 
@@ -64,7 +63,9 @@ def main(args):
     oldN = os.cpu_count() if args.processes is None else args.processes
     N = next_highest_divisor(h, oldN)
     if N != oldN:
-        print(f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}")
+        print(
+            f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}"
+        )
 
     first_execution = True
     with multiprocessing.Pool(processes=N) as pool:
@@ -117,7 +118,19 @@ def main(args):
                     do_raytrace,
                     [
                         copy.deepcopy(
-                            tuple([L, E, compute_viewport(S), w, h, scene, args.bounces, i, N])
+                            tuple(
+                                [
+                                    L,
+                                    E,
+                                    compute_viewport(S),
+                                    w,
+                                    h,
+                                    scene,
+                                    args.bounces,
+                                    i,
+                                    N,
+                                ]
+                            )
                         )
                         for i in range(N)
                     ],
@@ -134,12 +147,18 @@ def main(args):
                 # pdb.set_trace()
                 print("merging results")
                 common_shape = next(
-                    c.shape for v in colors for c in v.components() if not isinstance(c, int)
+                    c.shape
+                    for v in colors
+                    for c in v.components()
+                    if not isinstance(c, int)
                 )
                 color = rgb(
                     *[
                         np.concatenate(
-                            [c if type(c) != int else np.zeros(common_shape) for c in comp]
+                            [
+                                c if type(c) != int else np.zeros(common_shape)
+                                for c in comp
+                            ]
                         )
                         for comp in zip(*[v.components() for v in colors])
                     ]
