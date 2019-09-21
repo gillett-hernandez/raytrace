@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from PIL import Image
 import numpy as np
 import time
@@ -20,7 +21,9 @@ parser.add_argument("--timeout", type=int, default=30)
 parser.add_argument("--processes", type=int, default=None)
 
 
+
 def main(args):
+    t_1 = time.time()
     (w, h) = (args.width, args.height)  # Screen size
 
     L = vec3(5, 5.0, -5.0)  # Point light position
@@ -73,7 +76,7 @@ def main(args):
     #     )
     # ]
     # breakpoint()
-    with multiprocessing.Pool(processes=min(N, os.cpu_count()-1)) as pool:
+    with multiprocessing.Pool(processes=min(N, os.cpu_count() - 1)) as pool:
         print(f"starting pool execution on {N} processes")
 
         print("sending starmap order")
@@ -112,6 +115,7 @@ def main(args):
 
     t3 = time.time()
     print(f"Took {t3-t2} seconds to save results")
+    print(f"Took {t3-t_1} seconds total to do everything")
 
 
 if __name__ == "__main__":

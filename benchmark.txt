@@ -1,0 +1,62 @@
+time ./rt5.py --bounces 10 --processes 20 && open fig.png
+starting pool execution on 20 processes
+sending starmap order
+33364
+33365
+33366
+33364 done in 0.05654597282409668 seconds!
+33364
+33364 done in 0.03849506378173828 seconds!
+33364
+33365 done in 0.1716160774230957 seconds!
+33365
+33366 done in 0.26854491233825684 seconds!
+33366
+33365 done in 0.20328402519226074 seconds!
+33364 done in 0.30864906311035156 seconds!
+33364
+33365
+33366 done in 0.18933796882629395 seconds!
+33366
+33365 done in 0.30048108100891113 seconds!
+33365
+33364 done in 0.3287208080291748 seconds!
+33364
+33365 done in 0.5748741626739502 seconds!
+33365
+33366 done in 1.1714599132537842 seconds!
+33366
+33364 done in 1.137357234954834 seconds!
+33364
+33365 done in 0.8485190868377686 seconds!
+33365
+33364 done in 0.7995550632476807 seconds!
+33364
+33366 done in 1.1805241107940674 seconds!
+33366
+33365 done in 0.9381566047668457 seconds!
+33364 done in 0.9530050754547119 seconds!
+33364
+33366 done in 0.9548981189727783 seconds!
+33366
+33364 done in 0.7457828521728516 seconds!
+33366 done in 1.0869061946868896 seconds!
+getting results
+Took 5.0763678550720215 seconds to compute raytrace and retrieve results from processes
+merging results
+Took 0.06124114990234375 seconds to merge results
+Took 0.5523767471313477 seconds to save results
+Took 5.690001726150513 seconds total to do everything
+
+real    0m6.057s
+user    0m9.413s
+sys 0m1.555s
+
+
+
+$ time ./rt3.py --bounces 10 && open fig.png
+Took 6.751454830169678
+
+real    0m7.682s
+user    0m5.902s
+sys 0m1.287s
