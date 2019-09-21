@@ -99,19 +99,24 @@ def main(args):
                     E.x += x * delta
                     E.y += z * delta
                     E.z += y * delta
-        
-            print(f"starting pool execution on {N} processes")
+            ready = True
 
-            print("sending starmap order")
-            colors = pool.starmap(
-                do_raytrace,
-                [copy.deepcopy(tuple([L, E, compute_viewport(S), w, h, scene, args.bounces, i, N])) for i in range(N)],
-            )
-            # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, sub, scene, args.bounces]))) for sub in Qs]
+            if ready:
+                print(f"starting pool execution on {N} processes")
+
+                print("sending starmap order")
+                # colors = pool.starmap(
+                    # do_raytrace,
+                    # [copy.deepcopy(tuple([L, E, compute_viewport(S), w, h, scene, args.bounces, i, N])) for i in range(N)],
+                # )
+                colors = [(i, pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E,  compute_viewport(S), w, h, scene, args.bounces, i, N])))) for i in range(N)]
             print("getting results")
-            t1 = time.time()
-            print(f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes")
-            # colors = [res.get(timeout=args.timeout) for res in colors]
+            if all(color[1].done() for color in colors):
+                t1 = time.time()
+                print(f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes")
+                colors = 
+            else:
+                done_colors = [(color[0], color[1].get()) for color in colors if color[1].done()]
             # colors = colors.get(timeout=args.timeout)
             # import pdb
             # pdb.set_trace()
