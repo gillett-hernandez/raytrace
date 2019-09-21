@@ -5,6 +5,7 @@ import math
 from functools import reduce
 import numpy as np
 
+
 def extract(cond, x):
     if isinstance(x, numbers.Number):
         return x
@@ -47,6 +48,9 @@ class vec3:
         np.place(r.y, cond, self.y)
         np.place(r.z, cond, self.z)
         return r
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y and self.z == other.z
 
 
 rgb = vec3

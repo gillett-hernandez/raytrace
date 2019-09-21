@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from PIL import Image
 import numpy as np
 import time
@@ -16,6 +17,7 @@ parser.add_argument("--width", type=int, default=1920)
 parser.add_argument("--height", type=int, default=1080)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
+
 
 def do_raytrace(L, E, Q, scene, max_bounces):
     print(os.getpid())
