@@ -1,6 +1,7 @@
 from PIL import Image
 import numpy as np
 import time
+import pygame
 import numbers
 import math
 from functools import reduce
