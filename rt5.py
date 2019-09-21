@@ -72,7 +72,7 @@ def main(args):
     #     )
     # ]
     # breakpoint()
-    with multiprocessing.Pool(processes=N) as pool:
+    with multiprocessing.Pool(processes=min(N, os.cpu_count()-1)) as pool:
         print(f"starting pool execution on {N} processes")
 
         print("sending starmap order")
