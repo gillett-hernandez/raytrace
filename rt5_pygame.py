@@ -7,10 +7,30 @@ import argparse
 
 import numpy as np
 import pygame
-from pygame.locals import *
+from pygame.locals import (
+    KEYDOWN,
+    K_ESCAPE,
+    K_UP,
+    K_DOWN,
+    K_d,
+    K_s,
+    K_a,
+    K_w,
+    QUIT,
+    K_n,
+    K_b,
+    KMOD_LSHIFT,
+    KMOD_LCTRL
+)
 
 
-from core_raytrace import *
+from core_raytrace import (
+    vec3,
+    rgb,
+    next_highest_divisor,
+    do_raytrace,
+    load_and_parse_scene_from_file,
+)
 
 
 parser = argparse.ArgumentParser()
@@ -19,6 +39,7 @@ parser.add_argument("--height", type=int, default=640)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
 parser.add_argument("--processes", type=int, default=None)
+parser.add_argument("--scenefile", type=str, default="scene.json")
 
 
 def main(args):
@@ -31,28 +52,21 @@ def main(args):
     L = vec3(5, 5.0, -5.0)  # Point light position
     E = vec3(0.0, 0.35, -1.0)  # Eye position
     S = vec3(0.0, 0.15, 0.0)  # Viewport center position
+    S_DIST = 1
     S_SIZE = (2, 2 * h / w)  # Viewport size in world coordinates
 
     # with eye at vec3(0.0, 0.35, -1.0),
     # x is left right,
     # y is up down
     # z is close far.
-    scene = [
-        Sphere(vec3(0.625, 0.1, 0.5), 0.6, rgb(0.0, 0.0, 0.0), 1.0),
-        Sphere(vec3(-0.625, 0.1, 0.5), 0.6, rgb(0.0, 0.0, 0.0), 1.0),
-        CheckeredSphere(vec3(0, -99999.5, 0), 99999, rgb(0.75, 0.75, 0.75), 0.25),
-    ]
+    scene = load_and_parse_scene_from_file(args.scenefile)
 
     r = float(w) / h
     # Screen coordinates: x0, y0, x1, y1.
     # fmt:off
-    compute_viewport = lambda S: (
-        S.x - S_SIZE[0] / 2,
-        S.y + S_SIZE[1] / 2,
-        S.x + S_SIZE[0] / 2,
-        S.y - S_SIZE[1] / 2,
-        S.z
-    )
+
+    def compute_viewport(S):
+        return (S.x - S_SIZE[0] / 2, S.y + S_SIZE[1] / 2, S.x + S_SIZE[0] / 2, S.y - S_SIZE[1] / 2, S.z)
     # fmt:on
     # x = np.tile(np.linspace(S[0], S[2], w), h)
     # y = np.repeat(np.linspace(S[1], S[3], h), w)
@@ -68,7 +82,7 @@ def main(args):
         )
 
     first_execution = True
-    with multiprocessing.Pool(processes=N) as pool:
+    with multiprocessing.Pool(processes=min(N, os.cpu_count()-1)) as pool:
         while True:
             invalidated = False
             for e in pygame.event.get():
@@ -76,38 +90,69 @@ def main(args):
                     return
                 if e.type == KEYDOWN:
                     delta = 0.1
-                    y = 0
                     x = 0
+                    y = 0
                     z = 0
-                    r = 0
+                    lx = 0
+                    ly = 0
+                    lz = 0
                     bounce_delta = 0
                     if e.key == K_w:
-                        y += 1
+                        if e.mod & KMOD_LSHIFT:
+                            ly += 1
+                        else:
+                            y += 1
                     elif e.key == K_s:
-                        y -= 1
+                        if e.mod & KMOD_LSHIFT:
+                            ly -= 1
+                        else:
+                            y -= 1
                     elif e.key == K_a:
-                        x -= 1
+                        if e.mod & KMOD_LSHIFT:
+                            lx -= 1
+                        else:
+                            x -= 1
                     elif e.key == K_d:
-                        x += 1
+                        if e.mod & KMOD_LSHIFT:
+                            lx += 1
+                        else:
+                            x += 1
                     elif e.key == K_UP:
-                        z += 1
+                        if e.mod & KMOD_LSHIFT:
+                            lz += 1
+                        elif e.mod & KMOD_LCTRL:
+                            S_DIST += 1
+                        else:
+                            z += 1
                     elif e.key == K_DOWN:
-                        z -= 1
+                        if e.mod & KMOD_LSHIFT:
+                            lz -= 1
+                        elif e.mod & KMOD_LCTRL:
+                            S_DIST -= 1
+                        else:
+                            z -= 1
                     elif e.key == K_b:
                         bounce_delta += 1
                     elif e.key == K_n:
                         bounce_delta -= 1
+                    # elif e.key == K_e:
+                    #     r += 1
+                    # elif e.key == K_q:
+                    #     r -= 1
 
-                    if y != 0 or z != 0 or x != 0 or bounce_delta:
+                    if any(_ != 0 for _ in [x, y, z, lx, ly, lz]) or bounce_delta:
                         invalidated = True
 
-                    S.x += x * delta
-                    S.y += z * delta
-                    S.z += y * delta
-                    E.x += x * delta
-                    E.y += z * delta
-                    E.z += y * delta
-                    args.bounces += bounce_delta
+                        S.x += x * delta
+                        S.y += z * delta
+                        S.z += y * delta
+                        E.x += x * delta
+                        E.y += z * delta
+                        E.z += y * delta
+                        L.x += lx * delta
+                        L.y += lz * delta
+                        L.z += ly * delta
+                        args.bounces += bounce_delta
                     # TODO: figure out how to rotate camera + eye positions.
             if invalidated or first_execution:
                 first_execution = False

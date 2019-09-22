@@ -7,7 +7,15 @@ from functools import reduce
 import os
 import multiprocessing
 import copy
-from core_raytrace import *
+from core_raytrace import (
+    vec3,
+    rgb,
+    Sphere,
+    CheckeredSphere,
+    next_highest_divisor,
+    raytrace,
+    load_and_parse_scene_from_file
+)
 
 
 import argparse
@@ -17,6 +25,7 @@ parser.add_argument("--width", type=int, default=1920)
 parser.add_argument("--height", type=int, default=1080)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
+parser.add_argument("--scenefile", type=str, default="scene.json")
 
 
 def do_raytrace(L, E, Q, scene, max_bounces):
@@ -31,12 +40,7 @@ def main(args):
     L = vec3(5, 5.0, -10)  # Point light position
     E = vec3(0.0, 0.35, -1.0)  # Eye position
 
-    scene = [
-        Sphere(vec3(0.75, 0.1, 1.0), 0.6, rgb(0.01, 0.01, 0.01), 0.999),
-        Sphere(vec3(-0.75, 0.1, 2.25), 0.6, rgb(0.1, 0.1, 0.1), 0.999),
-        Sphere(vec3(-2.75, 0.1, 3.5), 0.6, rgb(0.0, 0.0, 0.0), 0.999),
-        CheckeredSphere(vec3(0, -99999.5, 0), 99999, rgb(0.75, 0.75, 0.75), 0.25),
-    ]
+    scene = load_and_parse_scene_from_file(args.scenefile)
 
     r = float(w) / h
     # Screen coordinates: x0, y0, x1, y1.

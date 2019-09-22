@@ -4,7 +4,7 @@ import numbers
 import math
 from functools import reduce
 import numpy as np
-
+import json
 
 def extract(cond, x):
     if isinstance(x, numbers.Number):
@@ -156,3 +156,27 @@ def do_raytrace(L, E, S, w, h, scene, max_bounces, task_id, processes):
     t1 = time.time()
     print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
     return rt_result
+
+
+def translate(obj):
+    return {
+        "center": vec3(*obj["center"]),
+        "r": obj["radius"],
+        "diffuse": vec3(*obj["diffuse"]),
+        "mirror": obj["mirror"]
+    }
+
+
+def load_and_parse_scene_from_file(filepath):
+    with open(filepath, "r") as fd:
+        data = json.load(fd)
+
+    objects = []
+    for obj in data["objects"]:
+        _type = obj["type"]
+        del obj["type"]
+        if _type == "Sphere":
+            objects.append(Sphere(**translate(obj)))
+        elif _type == "CheckeredSphere":
+            objects.append(CheckeredSphere(**translate(obj)))
+    return objects
