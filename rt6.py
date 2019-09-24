@@ -70,13 +70,12 @@ def main(args):
     # fmt:off
 
     def compute_viewport(S):
-        return (S.x - S_SIZE[0] / 2, S.y + S_SIZE[1] / 2, S.x + S_SIZE[0] / 2, S.y - S_SIZE[1] / 2, S.z, S_ROT_LR, S_ROT_UD)
+        return (-S_SIZE[0] / 2, S_SIZE[1] / 2, S_SIZE[0] / 2, - S_SIZE[1] / 2, S_ROT_LR, S_ROT_UD)
     # fmt:on
     # x = np.tile(np.linspace(S[0], S[2], w), h)
     # y = np.repeat(np.linspace(S[1], S[3], h), w)
     # print(x.shape, y.shape)
 
-    t0 = time.time()
     # N = 4
     oldN = os.cpu_count() if args.processes is None else args.processes
     N = next_highest_divisor(h, oldN)
@@ -167,7 +166,12 @@ def main(args):
                         args.bounces += bounce_delta
                     # TODO: figure out how to rotate camera + eye positions.
             if invalidated or first_execution:
+                print(L.components())
+                print(E.components())
+                print(S.components())
+                print(S_ROT_UD, S_ROT_LR)
                 first_execution = False
+                t0 = time.time()
                 print(f"starting pool execution on {N} processes")
 
                 print("sending starmap order")
@@ -175,7 +179,7 @@ def main(args):
                     do_raytrace_v2,
                     [
                         copy.deepcopy(
-                            tuple([L, E, compute_viewport(S), w, h, scene, args.bounces, i, N])
+                            tuple([L, E, S, compute_viewport(S), w, h, scene, args.bounces, i, N])
                         )
                         for i in range(N)
                     ],
