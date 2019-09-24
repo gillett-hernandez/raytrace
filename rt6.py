@@ -34,7 +34,7 @@ from core_raytrace import (
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--width", type=int, default=1200)
+parser.add_argument("--width", type=int, default=800)
 parser.add_argument("--height", type=int, default=640)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--refractions", type=int, default=3)
@@ -54,6 +54,8 @@ def main(args):
     E = vec3(0.0, 0.35, -1.0)  # Eye position
     S = vec3(0.0, 0.15, 0.0)  # Viewport center position
     S_DIST = 1
+    S_ROT_LR = 0
+    S_ROT_UD = 0
     S_SIZE = (2, 2 * h / w)  # Viewport size in world coordinates
 
     # with eye at vec3(0.0, 0.35, -1.0),
@@ -67,23 +69,20 @@ def main(args):
     # fmt:off
 
     def compute_viewport(S):
-        return (S.x - S_SIZE[0] / 2, S.y + S_SIZE[1] / 2, S.x + S_SIZE[0] / 2, S.y - S_SIZE[1] / 2, S.z)
+        return (-S_SIZE[0] / 2, S_SIZE[1] / 2, S_SIZE[0] / 2, - S_SIZE[1] / 2, S_ROT_LR, S_ROT_UD)
     # fmt:on
     # x = np.tile(np.linspace(S[0], S[2], w), h)
     # y = np.repeat(np.linspace(S[1], S[3], h), w)
     # print(x.shape, y.shape)
 
-    t0 = time.time()
     # N = 4
     oldN = os.cpu_count() if args.processes is None else args.processes
     N = next_highest_divisor(h, oldN)
     if N != oldN:
-        print(
-            f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}"
-        )
+        print(f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}")
 
     first_execution = True
-    with multiprocessing.Pool(processes=min(N, os.cpu_count()-1)) as pool:
+    with multiprocessing.Pool(processes=min(N, os.cpu_count() - 1)) as pool:
         while True:
             invalidated = False
             for e in pygame.event.get():
@@ -97,6 +96,8 @@ def main(args):
                     lx = 0
                     ly = 0
                     lz = 0
+                    LR = 0
+                    UD = 0
                     bounce_delta = 0
                     if e.key == K_w:
                         if e.mod & KMOD_LSHIFT:
@@ -136,12 +137,18 @@ def main(args):
                         bounce_delta += 1
                     elif e.key == K_n:
                         bounce_delta -= 1
-                    # elif e.key == K_e:
-                    #     r += 1
-                    # elif e.key == K_q:
-                    #     r -= 1
+                    elif e.key == K_e:
+                        if e.mod & KMOD_LSHIFT:
+                            LR += 1
+                        else:
+                            UD += 1
+                    elif e.key == K_q:
+                        if e.mod & KMOD_LSHIFT:
+                            LR -= 1
+                        else:
+                            UD -= 1
 
-                    if any(_ != 0 for _ in [x, y, z, lx, ly, lz]) or bounce_delta:
+                    if any(_ != 0 for _ in [x, y, z, lx, ly, lz, UD, LR, bounce_delta]):
                         invalidated = True
 
                         S.x += x * delta
@@ -153,14 +160,21 @@ def main(args):
                         L.x += lx * delta
                         L.y += lz * delta
                         L.z += ly * delta
+                        S_ROT_LR += LR * delta
+                        S_ROT_UD += UD * delta
                         args.bounces += bounce_delta
                     # TODO: figure out how to rotate camera + eye positions.
             if invalidated or first_execution:
+                print(L.components())
+                print(E.components())
+                print(S.components())
+                print(S_ROT_UD, S_ROT_LR)
                 first_execution = False
+                t0 = time.time()
                 print(f"starting pool execution on {N} processes")
 
                 print("sending starmap order")
-                colors = pool.starmap(
+                                colors = pool.starmap(
                     do_raytrace_v2,
                     [
                         copy.deepcopy(
@@ -168,6 +182,7 @@ def main(args):
                                 [
                                     L,
                                     E,
+                                    S,
                                     compute_viewport(S),
                                     w,
                                     h,
@@ -194,18 +209,12 @@ def main(args):
                 # pdb.set_trace()
                 print("merging results")
                 common_shape = next(
-                    c.shape
-                    for v in colors
-                    for c in v.components()
-                    if not isinstance(c, int)
+                    c.shape for v in colors for c in v.components() if not isinstance(c, int)
                 )
                 color = rgb(
                     *[
                         np.concatenate(
-                            [
-                                c if type(c) != int else np.zeros(common_shape)
-                                for c in comp
-                            ]
+                            [c if type(c) != int else np.zeros(common_shape) for c in comp]
                         )
                         for comp in zip(*[v.components() for v in colors])
                     ]

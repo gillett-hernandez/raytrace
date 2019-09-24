@@ -2,6 +2,7 @@ import time
 import os
 import numbers
 import math
+from math import cos, sin
 from functools import reduce
 import numpy as np
 import json
@@ -212,7 +213,34 @@ def do_raytrace(L, E, S, w, h, scene, max_bounces, task_id, processes):
     return rt_result
 
 
-def do_raytrace_v2(L, E, S, w, h, scene, task_id, processes, max_bounces, max_refractions):
+def make_rotation_matrix(theta, axis=0):
+    # template = np.array([
+    #     [sin(theta), cos(theta)],
+    #     [cos(theta), -sin(theta)]
+    # ])
+    # fmt: off
+    if axis == 0:
+        return np.array([
+            [cos(theta), 0,  -sin(theta)],
+            [0,          1,          0 ],
+            [sin(theta), 0, cos(theta)]
+        ])
+    elif axis == 1:
+        return np.array([
+            [1,         0,           0],
+            [0, cos(theta), -sin(theta)],
+            [0, sin(theta), cos(theta)]
+        ])
+    elif axis == 2:
+        return np.array([
+            [cos(theta), -sin(theta), 0],
+            [sin(theta), cos(theta), 0],
+            [0,                    0, 1]
+        ])
+    # fmt: on
+
+
+def do_raytrace_v2(L, E, C, S, w, h, scene, max_bounces, task_id, processes):
     print(os.getpid())
     t0 = time.time()
     assert task_id < processes
@@ -221,7 +249,22 @@ def do_raytrace_v2(L, E, S, w, h, scene, task_id, processes, max_bounces, max_re
     p1 = points[-task_id - 2]
     _x = np.tile(np.linspace(S[0], S[2], w), h // processes)
     _y = np.repeat(np.linspace(p0, p1, h // processes), w)
-    Q = vec3(_x, _y, S[4])
+    LR = make_rotation_matrix(S[-2], axis=1)
+    UD = make_rotation_matrix(S[-1], axis=0)
+    Q = np.stack([_x, _y, np.repeat(C.z, _x.shape)])
+    # Q -= E
+    Q = np.dot(LR, Q)
+    Q = np.dot(UD, Q)
+    Q = vec3(*Q)
+    Q += C
+    E -= C
+    E = np.stack(E.components())
+    E = np.dot(LR, E)
+    E = np.dot(UD, E)
+    E = vec3(*E)
+    E += C
+    # Q += E
+
     rt_result = raytrace(L, E, (Q - E).norm(), scene, max_bounces=max_bounces, max_refractions=max_refractions)
     t1 = time.time()
     print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
