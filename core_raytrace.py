@@ -133,6 +133,7 @@ class Sphere:
             # do bounce check.
             # self.do_bounce(bounce, max_bounces, L, D, N, nudged, scene, refract, max_refractions)
             # TIR_origin =
+            total_internal_reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
             # total_internal_reflection = np.where(k<0, self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions), vec3(0, 0, 0))
             # else:
             rayD = D*eta + N*(eta * cos_i - k**0.5)
@@ -148,8 +149,8 @@ class Sphere:
             Rp = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t))
             kr = (Rs * Rs + Rp * Rp) / 2
             kr = np.where(sint>=1, 1, kr)
-            return (raytrace(L, nudged, rayD, scene, bounce, max_bounces, refract+1, max_refractions) * self.refract, kr)
-        return (vec3(0, 0, 0), 1)
+            return (raytrace(L, nudged, rayD, scene, bounce, max_bounces, refract+1, max_refractions) * self.refract, kr, total_internal_reflection)
+        return (vec3(0, 0, 0), 1, vec3(0,0,0))
 
     def light(self, L, O, D, d, scene, bounce, max_bounces, refract, max_refractions):
         M = O + D * d  # intersection point
@@ -173,8 +174,8 @@ class Sphere:
         color += self.diffusecolor(M) * lv * 1.0
         reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
 
-        refraction, kr = self.do_refraction(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
-        color += reflection*kr + refraction*(1-kr)
+        refraction, kr, total_internal_reflection = self.do_refraction(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+        color += (total_internal_reflection + reflection)*kr + refraction*(1-kr)
 
         # Blinn-Phong shading (specular)
         phong = N.dot((toL + toO).norm())

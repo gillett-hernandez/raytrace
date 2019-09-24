@@ -5,8 +5,8 @@
             "center": [0.0, 0.1, 0.5],
             "radius": 0.6,
             "diffuse": [0.0, 0.0, 0.0],
-            "mirror": 1.0,
-            "refract": 0.7
+            "mirror": 0.6,
+            "refract": 1.0
         },
         {
             "type": "CheckeredSphere",
