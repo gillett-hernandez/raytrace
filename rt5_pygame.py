@@ -135,10 +135,6 @@ def main(args):
                         bounce_delta += 1
                     elif e.key == K_n:
                         bounce_delta -= 1
-                    # elif e.key == K_e:
-                    #     r += 1
-                    # elif e.key == K_q:
-                    #     r -= 1
 
                     if any(_ != 0 for _ in [x, y, z, lx, ly, lz]) or bounce_delta:
                         invalidated = True
