@@ -28,15 +28,16 @@ from core_raytrace import (
     vec3,
     rgb,
     next_highest_divisor,
-    do_raytrace,
+    do_raytrace_v2,
     load_and_parse_scene_from_file,
 )
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--width", type=int, default=800)
+parser.add_argument("--width", type=int, default=1200)
 parser.add_argument("--height", type=int, default=640)
 parser.add_argument("--bounces", type=int, default=3)
+parser.add_argument("--refractions", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
 parser.add_argument("--processes", type=int, default=None)
 parser.add_argument("--scenefile", type=str, default="scene.json")
@@ -160,7 +161,7 @@ def main(args):
 
                 print("sending starmap order")
                 colors = pool.starmap(
-                    do_raytrace,
+                    do_raytrace_v2,
                     [
                         copy.deepcopy(
                             tuple(
@@ -171,9 +172,10 @@ def main(args):
                                     w,
                                     h,
                                     scene,
-                                    args.bounces,
                                     i,
                                     N,
+                                    args.bounces,
+                                    args.refractions
                                 ]
                             )
                         )

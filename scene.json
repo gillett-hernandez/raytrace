@@ -2,25 +2,19 @@
     "objects": [
         {
             "type": "Sphere",
-            "center": [0.625, 0.1, 0.5],
+            "center": [0.0, 0.1, 0.5],
             "radius": 0.6,
             "diffuse": [0.0, 0.0, 0.0],
-            "mirror": 1.0
-        },
-
-        {
-            "type": "Sphere",
-            "center": [-0.625, 0.1, 0.5],
-            "radius": 0.6,
-            "diffuse": [0.0, 0.0, 0.0],
-            "mirror": 1.0
+            "mirror": 1.0,
+            "refract": 0.7
         },
         {
             "type": "CheckeredSphere",
             "center": [0,  -99999.5, 0],
             "radius": 99999,
             "diffuse": [0.75, 0.75, 0.75],
-            "mirror": 0.25
+            "mirror": 0.25,
+            "refract": 0.0
         }
     ]
 }
