@@ -30,7 +30,7 @@ from core_raytrace import (
     vec3,
     rgb,
     next_highest_divisor,
-    do_raytrace,
+    do_raytrace_v2,
     load_and_parse_scene_from_file,
 )
 

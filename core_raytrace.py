@@ -2,6 +2,7 @@ import time
 import os
 import numbers
 import math
+from math import cos, sin
 from functools import reduce
 import numpy as np
 import json
