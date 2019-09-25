@@ -2,7 +2,15 @@
     "objects": [
         {
             "type": "Sphere",
-            "center": [0.0, 0.1, 0.5],
+            "center": [0.6, 0.1, 0.5],
+            "radius": 0.6,
+            "diffuse": [0.0, 0.0, 0.0],
+            "mirror": 0.6,
+            "refract": 1.0
+        },
+        {
+            "type": "Sphere",
+            "center": [-0.6, 0.1, 0.5],
             "radius": 0.6,
             "diffuse": [0.0, 0.0, 0.0],
             "mirror": 0.6,

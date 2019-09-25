@@ -151,7 +151,7 @@ class Sphere:
             kr = (Rs * Rs + Rp * Rp) / 2
             kr = np.where(sint>=1, 1, kr)
             return (raytrace(L, nudged, rayD, scene, bounce, max_bounces, refract+1, max_refractions) * self.refract, kr, total_internal_reflection)
-        return (vec3(0, 0, 0), 1, vec3(0,0,0))
+        return (vec3(0, 0, 0), 1, vec3(0, 0, 0))
 
     def light(self, L, O, D, d, scene, bounce, max_bounces, refract, max_refractions):
         M = O + D * d  # intersection point
@@ -160,6 +160,7 @@ class Sphere:
         toL = (L - M).norm()  # direction to light
         toO = (E - M).norm()  # direction to ray origin
         nudged = M + N * 0.0001  # M nudged to avoid itself
+        do_diffuse = True
 
         # Shadow: find if the point is shadowed or not.
         # This amounts to finding out if M can see the light
@@ -168,15 +169,22 @@ class Sphere:
         # seelight = light_distances[scene.index(self)] == light_nearest
 
         # Ambient
-        color = rgb(0.05, 0.05, 0.05)
+
+        reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+        if self.refract > 0:
+            refraction, kr, total_internal_reflection = self.do_refraction(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+            do_diffuse = False
+            color = (total_internal_reflection + reflection)*kr + refraction*(1-kr)
+        else:
+            color = rgb(0.05, 0.05, 0.05)
+            color += reflection
 
         # Lambert shading (diffuse)
-        lv = np.maximum(N.dot(toL), 0)
-        color += self.diffusecolor(M) * lv * 1.0
-        reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+        if do_diffuse:
 
-        refraction, kr, total_internal_reflection = self.do_refraction(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
-        color += (total_internal_reflection + reflection)*kr + refraction*(1-kr)
+            lv = np.maximum(N.dot(toL), 0)
+            color += self.diffusecolor(M) * lv * 1.0
+
 
         # Blinn-Phong shading (specular)
         phong = N.dot((toL + toO).norm())
@@ -240,7 +248,7 @@ def make_rotation_matrix(theta, axis=0):
     # fmt: on
 
 
-def do_raytrace_v2(L, E, C, S, w, h, scene, max_bounces, task_id, processes):
+def do_raytrace_v2(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max_refractions):
     print(os.getpid())
     t0 = time.time()
     assert task_id < processes

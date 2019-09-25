@@ -6,6 +6,7 @@ import copy
 import argparse
 
 import numpy as np
+from PIL import Image
 import pygame
 from pygame.locals import (
     KEYDOWN,
@@ -16,8 +17,11 @@ from pygame.locals import (
     K_s,
     K_a,
     K_w,
+    K_e,
+    K_q,
     QUIT,
     K_n,
+    K_p,
     K_b,
     KMOD_LSHIFT,
     KMOD_LCTRL
@@ -82,6 +86,8 @@ def main(args):
         print(f"rounding up number of processes to be a divisor of {h}. {h} % {N} == {h%N}")
 
     first_execution = True
+    i = 0
+    save_image = False
     with multiprocessing.Pool(processes=min(N, os.cpu_count() - 1)) as pool:
         while True:
             invalidated = False
@@ -147,6 +153,9 @@ def main(args):
                             LR -= 1
                         else:
                             UD -= 1
+                    elif e.key == K_p:
+                        print("pressed p")
+                        save_image = True
 
                     if any(_ != 0 for _ in [x, y, z, lx, ly, lz, UD, LR, bounce_delta]):
                         invalidated = True
@@ -174,7 +183,7 @@ def main(args):
                 print(f"starting pool execution on {N} processes")
 
                 print("sending starmap order")
-                                colors = pool.starmap(
+                colors = pool.starmap(
                     do_raytrace_v2,
                     [
                         copy.deepcopy(
@@ -237,6 +246,15 @@ def main(args):
                 # del screen_array
 
                 new_rgb = np.stack(new_rgb).T
+            if save_image:
+                print("saving image")
+                image_rgb = [
+                    Image.fromarray(c, "L")
+                    for c in new_rgb.T
+                ]
+                Image.merge("RGB", image_rgb).save(f"fig{i}.png")
+                i += 1
+                save_image = False
             pygame.surfarray.blit_array(screen, new_rgb)
             display.blit(screen, (0, 0))
 
