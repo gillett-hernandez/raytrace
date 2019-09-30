@@ -112,7 +112,10 @@ class Sphere:
         # Reflection
         if bounce < max_bounces:
             rayD = (D - N * 2 * D.dot(N)).norm()
-            return raytrace(L, nudged, rayD, scene, bounce + 1, max_bounces, refract, max_refractions) * self.mirror
+            return (
+                raytrace(L, nudged, rayD, scene, bounce + 1, max_bounces, refract, max_refractions)
+                * self.mirror
+            )
         return vec3(0, 0, 0)
 
     def do_refraction(self, L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions):
@@ -122,35 +125,42 @@ class Sphere:
             eta_i, eta_t = 1, self.index_of_refraction
             cos_i = np.clip(NdI, -1, 1)
             N = vec3(*[np.where(cos_i >= 0, -c, c) for c in N.components()])
-            eta = eta_i/eta_t
-            eta = np.where(cos_i < 0, eta, 1/eta)
+            eta = eta_i / eta_t
+            eta = np.where(cos_i < 0, eta, 1 / eta)
             cos_i = np.where(cos_i < 0, cos_i, -cos_i)
             # outside of the surface
             # inside the surface. reverse normal
             # this has an effect on the later bounce check too.
-            k = 1 - eta**2 * (1 - cos_i**2)
+            k = 1 - eta ** 2 * (1 - cos_i ** 2)
             # if k < 0:
             # total internal reflection
             # do bounce check.
             # self.do_bounce(bounce, max_bounces, L, D, N, nudged, scene, refract, max_refractions)
             # TIR_origin =
-            total_internal_reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+            total_internal_reflection = self.do_bounce(
+                L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions
+            )
             # total_internal_reflection = np.where(k<0, self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions), vec3(0, 0, 0))
             # else:
-            rayD = D*eta + N*(eta * cos_i - k**0.5)
+            rayD = D * eta + N * (eta * cos_i - k ** 0.5)
             cos_i_b_0 = np.maximum(0, 1 - cos_i * cos_i)
-            sint = eta_i / eta_t * cos_i_b_0**0.5
+            sint = eta_i / eta_t * cos_i_b_0 ** 0.5
             # if (sint >= 1) {
             #     kr = 1;
             # }
             # else {
-            cos_t = np.maximum(0, 1 - sint * sint)**0.5
+            cos_t = np.maximum(0, 1 - sint * sint) ** 0.5
             cos_i = abs(cos_i)
             Rs = ((eta_t * cos_i) - (eta_i * cos_t)) / ((eta_t * cos_i) + (eta_i * cos_t))
             Rp = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t))
             kr = (Rs * Rs + Rp * Rp) / 2
-            kr = np.where(sint>=1, 1, kr)
-            return (raytrace(L, nudged, rayD, scene, bounce, max_bounces, refract+1, max_refractions) * self.refract, kr, total_internal_reflection)
+            kr = np.where(sint >= 1, 1, kr)
+            return (
+                raytrace(L, nudged, rayD, scene, bounce, max_bounces, refract + 1, max_refractions)
+                * self.refract,
+                kr,
+                total_internal_reflection,
+            )
         return (vec3(0, 0, 0), 1, vec3(0, 0, 0))
 
     def light(self, L, O, D, d, scene, bounce, max_bounces, refract, max_refractions):
@@ -170,11 +180,15 @@ class Sphere:
 
         # Ambient
 
-        reflection = self.do_bounce(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+        reflection = self.do_bounce(
+            L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions
+        )
         if self.refract > 0:
-            refraction, kr, total_internal_reflection = self.do_refraction(L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions)
+            refraction, kr, total_internal_reflection = self.do_refraction(
+                L, D, N, nudged, scene, bounce, max_bounces, refract, max_refractions
+            )
             do_diffuse = False
-            color = (total_internal_reflection + reflection)*kr + refraction*(1-kr)
+            color = (total_internal_reflection + reflection) * kr + refraction * (1 - kr)
         else:
             color = rgb(0.05, 0.05, 0.05)
             color += reflection
@@ -184,7 +198,6 @@ class Sphere:
 
             lv = np.maximum(N.dot(toL), 0)
             color += self.diffusecolor(M) * lv * 1.0
-
 
         # Blinn-Phong shading (specular)
         phong = N.dot((toL + toO).norm())
@@ -249,7 +262,7 @@ def make_rotation_matrix(theta, axis=0):
 
 
 def do_raytrace_v2(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max_refractions):
-    print(os.getpid())
+    # print(os.getpid())
     t0 = time.time()
     assert task_id < processes
     points = np.linspace(S[1], S[3], processes + 1)[::-1]
@@ -273,9 +286,11 @@ def do_raytrace_v2(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max
     E += C
     # Q += E
 
-    rt_result = raytrace(L, E, (Q - E).norm(), scene, max_bounces=max_bounces, max_refractions=max_refractions)
+    rt_result = raytrace(
+        L, E, (Q - E).norm(), scene, max_bounces=max_bounces, max_refractions=max_refractions
+    )
     t1 = time.time()
-    print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
+    # print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
     return rt_result
 
 
@@ -285,7 +300,7 @@ def translate(obj):
         "r": obj["radius"],
         "diffuse": vec3(*obj["diffuse"]),
         "mirror": obj["mirror"],
-        "refract": obj["refract"]
+        "refract": obj["refract"],
     }
 
 

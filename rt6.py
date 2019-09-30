@@ -24,7 +24,7 @@ from pygame.locals import (
     K_p,
     K_b,
     KMOD_LSHIFT,
-    KMOD_LCTRL
+    KMOD_LCTRL,
 )
 
 
@@ -34,17 +34,21 @@ from core_raytrace import (
     next_highest_divisor,
     do_raytrace_v2,
     load_and_parse_scene_from_file,
+    make_rotation_matrix,
 )
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--width", type=int, default=800)
-parser.add_argument("--height", type=int, default=640)
+parser.add_argument("--width", type=int, default=300)
+parser.add_argument("--height", type=int, default=200)
 parser.add_argument("--bounces", type=int, default=3)
 parser.add_argument("--refractions", type=int, default=3)
 parser.add_argument("--timeout", type=int, default=30)
 parser.add_argument("--processes", type=int, default=None)
 parser.add_argument("--scenefile", type=str, default="scene.json")
+
+
+DEGUG = False
 
 
 def main(args):
@@ -159,30 +163,34 @@ def main(args):
 
                     if any(_ != 0 for _ in [x, y, z, lx, ly, lz, UD, LR, bounce_delta]):
                         invalidated = True
+                        S_ROT_LR += LR * delta
+                        S_ROT_UD += UD * delta
+
+                        print("xyz before = ", x, y, z)
+                        LR = make_rotation_matrix(S_ROT_LR, axis=1)
+                        UD = make_rotation_matrix(S_ROT_UD, axis=0)
+                        pos = np.array([[x, z, y]]).T
+                        pos = (LR @ UD) @ pos
+                        x, z, y = list(pos.T[0])
+                        print("xyz after =", x, y, z)
 
                         S.x += x * delta
-                        S.y += z * delta
                         S.z += y * delta
+                        S.y += z * delta
                         E.x += x * delta
-                        E.y += z * delta
                         E.z += y * delta
+                        E.y += z * delta
                         L.x += lx * delta
                         L.y += lz * delta
                         L.z += ly * delta
-                        S_ROT_LR += LR * delta
-                        S_ROT_UD += UD * delta
                         args.bounces += bounce_delta
-                    # TODO: figure out how to rotate camera + eye positions.
             if invalidated or first_execution:
-                print(L.components())
-                print(E.components())
-                print(S.components())
-                print(S_ROT_UD, S_ROT_LR)
+                print("UD, LR", S_ROT_UD, S_ROT_LR)
                 first_execution = False
                 t0 = time.time()
-                print(f"starting pool execution on {N} processes")
+                # print(f"starting pool execution on {N} processes")
 
-                print("sending starmap order")
+                # print("sending starmap order")
                 colors = pool.starmap(
                     do_raytrace_v2,
                     [
@@ -199,7 +207,7 @@ def main(args):
                                     i,
                                     N,
                                     args.bounces,
-                                    args.refractions
+                                    args.refractions,
                                 ]
                             )
                         )
@@ -207,16 +215,12 @@ def main(args):
                     ],
                 )
                 # colors = [pool.apply_async(do_raytrace, copy.deepcopy(tuple([L, E, sub, scene, args.bounces]))) for sub in Qs]
-                print("getting results")
                 t1 = time.time()
-                print(
-                    f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes"
-                )
+                # print(
+                #     f"Took {t1-t0} seconds to compute raytrace and retrieve results from processes"
+                # )
                 # colors = [res.get(timeout=args.timeout) for res in colors]
                 # colors = colors.get(timeout=args.timeout)
-                # import pdb
-                # pdb.set_trace()
-                print("merging results")
                 common_shape = next(
                     c.shape for v in colors for c in v.components() if not isinstance(c, int)
                 )
@@ -229,7 +233,7 @@ def main(args):
                     ]
                 )
                 t2 = time.time()
-                print(f"Took {t2-t1} seconds to merge results")
+                # print(f"Took {t2-t1} seconds to merge results")
                 # Q = vec3(x, y, 0)
                 # color = do_raytrace(L, E, Q, scene, args.bounces)
 
@@ -241,17 +245,13 @@ def main(args):
                 # Image.merge("RGB", new_rgb).save("fig.png")
 
                 # screen_array = pygame.surfarray.pixels3d(screen)
-                # print(screen_array.shape)
                 # screen_array = new_rgb.T
                 # del screen_array
 
                 new_rgb = np.stack(new_rgb).T
             if save_image:
                 print("saving image")
-                image_rgb = [
-                    Image.fromarray(c, "L")
-                    for c in new_rgb.T
-                ]
+                image_rgb = [Image.fromarray(c, "L") for c in new_rgb.T]
                 Image.merge("RGB", image_rgb).save(f"fig{i}.png")
                 i += 1
                 save_image = False
