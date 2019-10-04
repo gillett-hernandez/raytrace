@@ -234,6 +234,10 @@ def do_raytrace(L, E, S, w, h, scene, max_bounces, task_id, processes):
     return rt_result
 
 
+def make_2d_rotation_matrix(theta):
+    return np.array([[cos(theta), -sin(theta)], [sin(theta), cos(theta)]])
+
+
 def make_rotation_matrix(theta, axis=0):
     # template = np.array([
     #     [sin(theta), cos(theta)],

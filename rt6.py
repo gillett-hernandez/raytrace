@@ -35,6 +35,7 @@ from core_raytrace import (
     do_raytrace_v2,
     load_and_parse_scene_from_file,
     make_rotation_matrix,
+    make_2d_rotation_matrix,
 )
 
 
@@ -77,7 +78,7 @@ def main(args):
     # fmt:off
 
     def compute_viewport(S):
-        return (-S_SIZE[0] / 2, S_SIZE[1] / 2, S_SIZE[0] / 2, - S_SIZE[1] / 2, S_ROT_LR, S_ROT_UD)
+        return (-S_SIZE[0] / 2, S_SIZE[1] / 2, S_SIZE[0] / 2, - S_SIZE[1] / 2, S_ROT_UD, S_ROT_LR)
     # fmt:on
     # x = np.tile(np.linspace(S[0], S[2], w), h)
     # y = np.repeat(np.linspace(S[1], S[3], h), w)
@@ -149,14 +150,14 @@ def main(args):
                         bounce_delta -= 1
                     elif e.key == K_e:
                         if e.mod & KMOD_LSHIFT:
-                            LR += 1
-                        else:
                             UD += 1
+                        else:
+                            LR += 1
                     elif e.key == K_q:
                         if e.mod & KMOD_LSHIFT:
-                            LR -= 1
-                        else:
                             UD -= 1
+                        else:
+                            LR -= 1
                     elif e.key == K_p:
                         print("pressed p")
                         save_image = True
@@ -166,13 +167,11 @@ def main(args):
                         S_ROT_LR += LR * delta
                         S_ROT_UD += UD * delta
 
-                        print("xyz before = ", x, y, z)
                         LR = make_rotation_matrix(S_ROT_LR, axis=1)
                         UD = make_rotation_matrix(S_ROT_UD, axis=0)
                         pos = np.array([[x, z, y]]).T
-                        pos = (LR @ UD) @ pos
+                        pos = (UD @ LR) @ pos
                         x, z, y = list(pos.T[0])
-                        print("xyz after =", x, y, z)
 
                         S.x += x * delta
                         S.z += y * delta
@@ -184,8 +183,9 @@ def main(args):
                         L.y += lz * delta
                         L.z += ly * delta
                         args.bounces += bounce_delta
+                        print(S.x, S.y, S.z, E.x, E.y, E.z)
+
             if invalidated or first_execution:
-                print("UD, LR", S_ROT_UD, S_ROT_LR)
                 first_execution = False
                 t0 = time.time()
                 # print(f"starting pool execution on {N} processes")
@@ -256,6 +256,19 @@ def main(args):
                 i += 1
                 save_image = False
             pygame.surfarray.blit_array(screen, new_rgb)
+            # breakpoint()
+            new_s_size = make_2d_rotation_matrix(S_ROT_LR) @ np.array([S_SIZE]).T
+            left, right = (
+                (S.x - new_s_size[0], S.z + new_s_size[1]),
+                (S.x + new_s_size[0], S.z - new_s_size[1]),
+            )
+
+            pygame.draw.polygon(
+                screen,
+                (255, 0, 0),
+                [[100 + 10 * c for c in e] for e in [left, (E.x, E.z), right]],
+                2,
+            )
             display.blit(screen, (0, 0))
 
             pygame.display.update()
