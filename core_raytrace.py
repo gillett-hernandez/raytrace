@@ -86,10 +86,22 @@ def raytrace(L, O, D, scene, bounce=0, max_bounces=2, refract=0, max_refractions
 
 class Sphere:
     # index of refraction (ior) of 1.5 is air to glass
-    def __init__(self, center, r, diffuse, mirror=0.5, refract=0.0, ior=1.5):
+    def __init__(
+        self,
+        center,
+        r,
+        diffuse=0.5,
+        specular=0.5,
+        mirror=0.5,
+        refract=0.0,
+        ior=1.5,
+        should_diffuse=True,
+    ):
         self.c = center
         self.r = r
         self.diffuse = diffuse
+        self.should_diffuse = should_diffuse
+        self.specular = specular
         self.mirror = mirror
         self.refract = refract
         self.index_of_refraction = ior
@@ -169,14 +181,16 @@ class Sphere:
         E = O
         toL = (L - M).norm()  # direction to light
         toO = (E - M).norm()  # direction to ray origin
-        nudged = M + N * 0.0001  # M nudged to avoid itself
-        do_diffuse = True
+        nudged = M + N * 0.0001  # M nudged outside of itself to avoid itself
+        do_diffuse = self.should_diffuse
 
         # Shadow: find if the point is shadowed or not.
         # This amounts to finding out if M can see the light
-        # light_distances = [s.intersect(nudged, toL) for s in scene]
-        # light_nearest = reduce(np.minimum, light_distances)
-        # seelight = light_distances[scene.index(self)] == light_nearest
+        light_distances = [s.intersect(nudged, toL) for s in scene]
+        light_nearest = reduce(np.minimum, light_distances)
+        # ??????????? how does the following line work?
+        # also, need to refactor this seelight so that we can get caustics working.
+        seelight = light_distances[scene.index(self)] == light_nearest
 
         # Ambient
 
@@ -197,11 +211,12 @@ class Sphere:
         if do_diffuse:
 
             lv = np.maximum(N.dot(toL), 0)
-            color += self.diffusecolor(M) * lv * 1.0
+            color += self.diffusecolor(M) * lv * seelight
 
         # Blinn-Phong shading (specular)
-        phong = N.dot((toL + toO).norm())
-        color += rgb(1, 1, 1) * np.power(np.clip(phong, 0, 1), 50) * 1.0
+        if self.specular > 0:
+            phong = N.dot((toL + toO).norm())
+            color += rgb(1, 1, 1) * np.power(np.clip(phong, 0, 1), 50) * self.specular * seelight
         return color
 
 
@@ -274,6 +289,7 @@ def do_raytrace_v2(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max
     p1 = points[-task_id - 2]
     _x = np.tile(np.linspace(S[0], S[2], w), h // processes)
     _y = np.repeat(np.linspace(p0, p1, h // processes), w)
+
     LR = make_rotation_matrix(S[-2], axis=1)
     UD = make_rotation_matrix(S[-1], axis=0)
     Q = np.stack([_x, _y, np.repeat(C.z, _x.shape)])
@@ -298,14 +314,72 @@ def do_raytrace_v2(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max
     return rt_result
 
 
+def do_sampled_raytrace(L, E, C, S, w, h, scene, task_id, processes, max_bounces, max_refractions):
+    # print(os.getpid())
+    t0 = time.time()
+    assert task_id < processes
+    points = np.linspace(S[1], S[3], processes + 1)[::-1]
+    p0 = points[-task_id - 1]
+    p1 = points[-task_id - 2]
+    _x = np.tile(np.linspace(S[0], S[2], w), h // processes)
+    _y = np.repeat(np.linspace(p0, p1, h // processes), w)
+
+    # do jitter. unformly sample the space between pixels.
+    xjitter = abs(S[2] - S[0]) / w  # realspace width divided by width in pixels
+    yjitter = abs(S[3] - S[1]) / h  # realspace height divided by height in pixels
+    xs, ys = (
+        np.random.uniform(-xjitter / 2, xjitter / 2, _x.shape),
+        np.random.uniform(-yjitter / 2, yjitter / 2, _y.shape),
+    )
+    _x += xs
+    _y += ys
+    LR = make_rotation_matrix(S[-2], axis=1)
+    UD = make_rotation_matrix(S[-1], axis=0)
+    Q = np.stack([_x, _y, np.repeat(C.z, _x.shape)])
+    # Q -= E
+    Q = np.dot(LR, Q)
+    Q = np.dot(UD, Q)
+    Q = vec3(*Q)
+    Q += C
+    E -= C
+    E = np.stack(E.components())
+    E = np.dot(LR, E)
+    E = np.dot(UD, E)
+    E = vec3(*E)
+    E += C
+    # Q += E
+
+    rt_result = raytrace(
+        L, E, (Q - E).norm(), scene, max_bounces=max_bounces, max_refractions=max_refractions
+    )
+    t1 = time.time()
+    # print(task_id, os.getpid(), f"done in {t1-t0} seconds!")
+    return rt_result
+
+
+def average(old, new, idx):
+    return old * (idx / (idx + 1)) + new / (idx + 1)
+
+
 def translate(obj):
-    return {
-        "center": vec3(*obj["center"]),
-        "r": obj["radius"],
-        "diffuse": vec3(*obj["diffuse"]),
-        "mirror": obj["mirror"],
-        "refract": obj["refract"],
-    }
+    c = {}
+    if "center" in obj:
+        c["center"] = vec3(*obj["center"])
+    if "radius" in obj:
+        c["r"] = obj["radius"]
+    if "diffuse" in obj:
+        if obj["diffuse"] == None:
+            c["should_diffuse"] = False
+        else:
+            c["diffuse"] = vec3(*obj["diffuse"])
+            c["should_diffuse"] = True
+    if "specular" in obj:
+        c["specular"] = obj["specular"]
+    if "mirror" in obj:
+        c["mirror"] = obj["mirror"]
+    if "refract" in obj:
+        c["refract"] = obj["refract"]
+    return c
 
 
 def load_and_parse_scene_from_file(filepath):
